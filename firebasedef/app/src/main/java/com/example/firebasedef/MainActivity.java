@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import com.google.android.gms.maps.model.LatLng;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -22,7 +23,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.ktx.Firebase;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +50,14 @@ public class MainActivity extends AppCompatActivity {
         loginButton = findViewById(R.id.loginButton);
         getUserButton = findViewById(R.id.getUserButton);
 
+        Intent intent = getIntent();
+        double latitude = intent.getDoubleExtra("latitude", 0.0);  // Valor por defecto: 0.0
+        double longitude = intent.getDoubleExtra("longitude", 0.0);  // Valor por defecto: 0.0
+        String email = intent.getStringExtra("email");
+        String password = intent.getStringExtra("password");
+
+        LatLng latLng = new LatLng(latitude, longitude);
+
         registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -54,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
                 String pwd = pwdInput.getText().toString().trim();
 
                 if(!email.isEmpty() && !pwd.isEmpty()){
-                    registerUser(email,pwd);
+                    registerUser(email,pwd,latLng);
                 } else {
                     Toast.makeText(MainActivity.this, "Completa los campos",Toast.LENGTH_SHORT).show();
                 }
@@ -127,12 +138,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void registerUser(String email, String pwd) {
+    public void registerUser(String email, String pwd, LatLng latLng) {
         mAuth.createUserWithEmailAndPassword(email, pwd).addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 FirebaseUser user = mAuth.getCurrentUser();
                 if (user != null) {
-                    saveUserToFirestore(user.getUid(), email);
+                    saveUserToFirestore(user.getUid(), email, latLng);
                 }
                 Toast.makeText(MainActivity.this, "Registro exitoso: " + email, Toast.LENGTH_SHORT).show();
                 Log.d("FirebaseAuth", "Usuario registrado: " + email);
@@ -146,10 +157,10 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void saveUserToFirestore(String userId, String email) {
+    private void saveUserToFirestore(String userId, String email, LatLng latlng) {
         Map<String, Object> user = new HashMap<>();
         user.put("email", email);
-        user.put("registroTimestamp", System.currentTimeMillis());
+        user.put("ubicacion", new GeoPoint(latlng.latitude,latlng.longitude));
 
         db.collection("usuarios").document(userId)
                 .set(user)
